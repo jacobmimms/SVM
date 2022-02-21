@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 
 def main():
     N = 20
-    C = .5
-    svm = SVM(N, "poly")
+    C = 10**-5
+    svm = SVM(N, "linear")
     XC = {'type': 'eq', 'fun': svm.zerofun}
     B = [(0, C) for b in range(N)]
     start = np.zeros(N)
@@ -14,8 +14,8 @@ def main():
     alpha = ret['x']
     print(alpha)
     print(ret)
-    plot_data(svm.data)
-    # plot_decision_boundary()
+    #plot_data(svm.data)
+    #plot_decision_boundary()
     return 
 
 class Kernel:
@@ -31,14 +31,15 @@ class Kernel:
 
 class SVM:
     def __init__(self, number_samples, ker='linear'):
+        self.sigma = 3
         self.N = number_samples
         self.data = TestData(self.N)
         self.inputs = self.data.inputs
         self.targets = self.data.targets
         self.kernel = { 
-            'linear': lambda x, y: np.dot(x.T,y), 
+            'linear': lambda x, y: np.dot(x,y), 
             'poly': lambda x, y: (np.dot(x,y) + 1) ** 2, 
-            'rbf' : lambda x, y: math.exp(-(np.dot(np.subtract(x,y), np.subtract(x,y))) / (2*2)**2)
+            'rbf' : lambda x, y: math.exp(-(np.linalg.norm(x-y))/2*(self.sigma^2))
         }.get(ker)
         self.P = self.precompute_P()
 
@@ -73,7 +74,7 @@ class TestData:
         classA = np.concatenate( 
             (np.random.randn(int(N/2), 2) * 0.2 + [1.5, 0.5],
             np.random.randn(int(N/2), 2) * 0.2 + [-1.5, 0.5]))
-        classB = np.random.randn(N, 2) * 0.2 + [0.0 , 0.5]
+        classB = np.random.randn(N, 2) * 0.2 + [0.0 , 1.5]
         inputs = np.concatenate((classA , classB))
         targets = np.concatenate((np.ones(classA.shape[0]), 
                                     -np.ones(classB.shape[0])))
