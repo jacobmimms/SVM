@@ -18,17 +18,6 @@ def main():
     #plot_decision_boundary()
     return 
 
-class Kernel:
-    def __init__(self, ker, ps = 0):
-        self.ker = ker
-        self.ps = ps
-        return
-
-    def __getitem__(self, input):
-        if self.ker == 'linear': return np.dot(input[0],input[1])
-        if self.ker == 'poly': return (np.dot(input[0],input[1])+1)**self.ps
-        if self.ker == 'rbf': return math.exp(-(np.dot(np.subtract(input[0],input[1]) , np.subtract(input[0],input[1]))) / (2*self.ps)**2)
-
 class SVM:
     def __init__(self, number_samples, ker='linear'):
         self.sigma = 3
@@ -57,8 +46,16 @@ class SVM:
     def zerofun(self, a_vec):
         return np.dot(a_vec, self.targets)
 
+def indicator():
+    return [0,0]
+
 def plot_decision_boundary():
-    return 
+    xgrid = np.linspace(-5, 5) 
+    ygrid = np.linspace(-4, 4)
+    grid = np.array([[indicator(x, y) for x in xgrid] for y in ygrid])
+    plt.contour(xgrid, ygrid, grid , (-1.0, 0.0, 1.0),
+    colors=('red', 'black', 'blue'), linewidths=(1, 3, 1))
+
 
 def plot_data(data, save_plt = False, filename = ""):
     plt.plot([p[0] for p in data.classA], [p[1] for p in data.classA], 'b.')
