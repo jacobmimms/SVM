@@ -11,6 +11,8 @@ def SVM(number_samples, constraints, C = .1):
     targets = data.targets
     precompute_P(inputs, targets, linear_kernal)
     start = np.zeros(N)
+    test = np.random.rand(10)
+    assert np.round(naive_objective_function(test),8) == np.round(objective_function(test),8)
     objective = objective_function
     B = [(0, C) for b in range(N)]
     XC = constraints #dict with 'type' and 'fun' fields 
@@ -34,7 +36,7 @@ def precompute_P(inputs, targets, kernel):
             P[i][j] = targets[i] * targets[j] * kernel(inputs[i], inputs[j])
     
     
-def objective_function(a_vec):
+def naive_objective_function(a_vec):
     ##TODO: implemement objective function
     """ 
     implements equation 4: 1/2∑∑(a_i)(a_j)(t_i)(t_j)K(x_i, x_j) - ∑a_i 
@@ -45,6 +47,14 @@ def objective_function(a_vec):
         for j in range(length):
             result += a_vec[i] * a_vec[j] * P[i][j]
     return .5 * result - np.sum(a_vec)
+
+def objective_function(a_vec):
+    """ 
+    implements equation 4: 1/2∑∑(a_i)(a_j)(t_i)(t_j)K(x_i, x_j) - ∑a_i 
+    """
+    result = np.sum(np.dot(np.dot(a_vec,P),a_vec))
+    return .5 * result - np.sum(a_vec)
+
 
 def linear_kernal(x,y):
     """
