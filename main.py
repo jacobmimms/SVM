@@ -1,20 +1,21 @@
+from re import A
 import numpy as np
 import random, math
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
 def main():
-    N = 20
-    C = 10**-5
+    #make sure N is a multiple of 4. Don't ask
+    N = 40 #total number of points (in classA and class B together)
+    C = 1
     svm = SVM(N, "linear")
     XC = {'type': 'eq', 'fun': svm.zerofun}
     B = [(0, C) for b in range(N)]
-    start = np.zeros(N)
+    start = np.random.randn(N)
     ret = minimize(svm.objective, start, bounds=B, constraints=XC)
     alpha = ret['x']
-    print(alpha)
     print(ret)
-    #plot_data(svm.data)
+    plot_data(svm.data)
     #plot_decision_boundary()
     return 
 
@@ -26,7 +27,7 @@ class SVM:
         self.inputs = self.data.inputs
         self.targets = self.data.targets
         self.kernel = { 
-            'linear': lambda x, y: np.dot(x,y), 
+            'linear': lambda x, y: np.dot(x.T,y), 
             'poly': lambda x, y: (np.dot(x,y) + 1) ** 2, 
             'rbf' : lambda x, y: math.exp(-(np.linalg.norm(x-y))/2*(self.sigma^2))
         }.get(ker)
@@ -69,9 +70,9 @@ class TestData:
     def __init__(self, N):
         np.random.seed(100)
         classA = np.concatenate( 
-            (np.random.randn(int(N/2), 2) * 0.2 + [1.5, 0.5],
-            np.random.randn(int(N/2), 2) * 0.2 + [-1.5, 0.5]))
-        classB = np.random.randn(N, 2) * 0.2 + [0.0 , 1.5]
+            (np.random.randn(int(N/4), 2) * 0.2 + [1.5, 0.5],
+            np.random.randn(int(N/4), 2) * 0.2 + [-1.5, 0.5]))
+        classB = np.random.randn(int(N/2), 2) * 0.2 + [0.0 , .5]
         inputs = np.concatenate((classA , classB))
         targets = np.concatenate((np.ones(classA.shape[0]), 
                                     -np.ones(classB.shape[0])))
