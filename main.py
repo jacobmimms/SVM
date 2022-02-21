@@ -1,75 +1,60 @@
-import numpy as np, random
+import numpy as np
+import random, math
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
-P = None
-
-def SVM(number_samples, constraints, C = 1):
-    N = number_samples
-    data = TestData(N)
-    inputs = data.inputs
-    targets = data.targets
-    precompute_P(inputs, targets, linear_kernal)
-    start = np.zeros(N)
-    objective = objective_function
+def main():
+    N = 20
+    C = .5
+    svm = SVM(N, "poly")
+    XC = {'type': 'eq', 'fun': svm.zerofun}
     B = [(0, C) for b in range(N)]
-    XC = constraints #dict with 'type' and 'fun' fields 
-    ret = minimize(objective, start, bounds=B, constraints=XC)
+    start = np.zeros(N)
+    ret = minimize(svm.objective, start, bounds=B, constraints=XC)
     alpha = ret['x']
     print(alpha)
     print(ret)
-    plot_data(data)
-    plot_decision_boundary()
-    return alpha
+    plot_data(svm.data)
+    # plot_decision_boundary()
+    return 
 
-def zerofun(a_vec):
-    """implements equality constraint: ∑(a_t)(t_i) = 0
-    """
-    return np.dot(a_vec, a_vec)
+class Kernel:
+    def __init__(self, ker, ps = 0):
+        self.ker = ker
+        self.ps = ps
+        return
 
-def precompute_P(inputs, targets, kernel):
-    """precomputes the matrix P_ij = (t_i)(t_j)K(x_i, x_j)
+    def __getitem__(self, input):
+        if self.ker == 'linear': return np.dot(input[0],input[1])
+        if self.ker == 'poly': return (np.dot(input[0],input[1])+1)**self.ps
+        if self.ker == 'rbf': return math.exp(-(np.dot(np.subtract(input[0],input[1]) , np.subtract(input[0],input[1]))) / (2*self.ps)**2)
 
-    Args:
-        inputs (np.ndarry): a numpy array of the input datapoints 
-        targets (np.ndarray): a numpy array of the datapoint classifications
-        kernel (function): the kernel function to be used (takes two arguments which are type np.ndarray)
-    """
-    global P
-    size = targets.size
-    P = np.ndarray((size, size))
-    for i in range(size):
-        for j in range(size):
-            P[i][j] = targets[i] * targets[j] * kernel(inputs[i], inputs[j])
-      
-def naive_objective_function(a_vec):
-    ##TODO: implemement objective function
-    """ 
-    implements equation 4: 1/2∑∑(a_i)(a_j)(t_i)(t_j)K(x_i, x_j) - ∑a_i 
-    """
-    length = a_vec.size
-    result = 0
-    for i in range(length):
-        for j in range(length):
-            result += a_vec[i] * a_vec[j] * P[i][j]
-    return .5 * result - np.sum(a_vec)
+class SVM:
+    def __init__(self, number_samples, ker='linear'):
+        self.N = number_samples
+        self.data = TestData(self.N)
+        self.inputs = self.data.inputs
+        self.targets = self.data.targets
+        self.kernel = { 
+            'linear': lambda x, y: np.dot(x.T,y), 
+            'poly': lambda x, y: (np.dot(x,y) + 1) ** 2, 
+            'rbf' : lambda x, y: math.exp(-(np.dot(np.subtract(x,y), np.subtract(x,y))) / (2*2)**2)
+        }.get(ker)
+        self.P = self.precompute_P()
 
-def objective_function(a_vec):
-    """ 
-    implements equation 4: 1/2∑∑(a_i)(a_j)(t_i)(t_j)K(x_i, x_j) - ∑a_i 
-    """
-    result = np.sum(np.dot(np.dot(a_vec,P),a_vec))
-    return .5 * result - np.sum(a_vec)
+    def precompute_P(self):
+        size = self.N
+        P = np.ndarray((size, size))
+        for i in range(size):
+            for j in range(size):
+                P[i][j] = self.targets[i] * self.targets[j] * self.kernel(self.inputs[i], self.inputs[j])
+        return P
+    
+    def objective(self, a_vec):
+        return np.dot(np.dot(a_vec, self.P),a_vec)/2 - np.sum(a_vec)
 
-def linear_kernal(x,y):
-    """
-    args:
-        x,y: numpy arrays
-
-    return value: 
-        the scalar product K(x,y)=xT·y 
-    """
-    return np.inner(x.T, y)
+    def zerofun(self, a_vec):
+        return np.dot(a_vec, self.targets)
 
 def plot_decision_boundary():
     return 
@@ -83,17 +68,12 @@ def plot_data(data, save_plt = False, filename = ""):
     plt.show()
 
 class TestData:
-    inputs = None
-    tarets = None
-    classA = None
-    classB = None
-
-    def __init__(self, N) -> None:
+    def __init__(self, N):
         np.random.seed(100)
         classA = np.concatenate( 
             (np.random.randn(int(N/2), 2) * 0.2 + [1.5, 0.5],
             np.random.randn(int(N/2), 2) * 0.2 + [-1.5, 0.5]))
-        classB = np.random.randn(N, 2) * 0.2 + [0.0 , -0.5]
+        classB = np.random.randn(N, 2) * 0.2 + [0.0 , 0.5]
         inputs = np.concatenate((classA , classB))
         targets = np.concatenate((np.ones(classA.shape[0]), 
                                     -np.ones(classB.shape[0])))
@@ -106,4 +86,4 @@ class TestData:
 
 
 if __name__ == "__main__":
-    SVM(20, {'type': 'eq', 'fun': zerofun})
+    main()
