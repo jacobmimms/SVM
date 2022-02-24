@@ -1,93 +1,100 @@
-from re import A
 import numpy as np
 import random, math
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
-def main():
-    #make sure N is a multiple of 4. Don't ask
-    N = 20 #total number of points (in classA and class B together)
-    C = 10**-4
-    svm = SVM(N, "linear")
-    XC = {'type': 'eq', 'fun': svm.zerofun}
-    B = [(0, C) for b in range(N)]
-    start = np.random.randn(N)
-    ret = minimize(svm.objective, start, bounds=B, constraints=XC)
-    alpha = ret['x']
-    print([round(x, 4) for x in alpha])
-    alpha = [round(x, 4) for x in alpha]
-    print(ret)
-    plot_decision_boundary(svm, alpha)
-    plot_data(svm.data)
-    return 
+np.random.seed(100)
 
-class SVM:
-    def __init__(self, number_samples, ker='linear'):
-        self.sigma = 3
-        self.N = number_samples
-        self.data = TestData(self.N)
-        self.inputs = self.data.inputs
-        self.targets = self.data.targets
-        self.kernel = { 
-            'linear': lambda x, y: np.dot(x,y), 
-            'poly': lambda x, y: (np.dot(x,y) + 1) ** 2, 
-            'rbf' : lambda x, y: math.exp(-(np.linalg.norm(x-y))/2*(self.sigma^2))
-        }.get(ker)
-        self.P = self.precompute_P()
+classA = np.concatenate( 
+    (np.random.randn(10, 2) * 0.2 + [1.5, 0.5],
+    np.random.randn(10, 2) * 0.2 + [-1.5, 0.5]))
+classB = np.random.randn(20, 2) * 0.2 + [0.0 , -.5]
+# classA = np.array([[0,0], [-1,-1]])
+# classB = np.array([[1,1],[2,2]])
 
-    def precompute_P(self):
-        size = self.N
-        P = np.ndarray((size, size))
-        for i in range(size):
-            for j in range(size):
-                P[i][j] = self.targets[i] * self.targets[j] * self.kernel(self.inputs[i], self.inputs[j])
-        return P
-    
-    def objective(self, a_vec):
-        return np.dot(np.dot(a_vec, self.P),a_vec)/2 - np.sum(a_vec)
+inputs = np.concatenate((classA , classB))
+targets = np.concatenate((np.ones(classA.shape[0]), 
+                            -np.ones(classB.shape[0])))
+N = inputs.shape[0]
 
-    def zerofun(self, a_vec):
-        return np.dot(a_vec, self.targets)
+permute = list(range(N)) 
+random.shuffle(permute) 
+inputs = inputs[permute, :]
+targets = targets [ permute ]
 
-def indicator(x,y, svm, a):
-    size = svm.inputs.size
+#TODO choose kernel type
+kernel_type = 'linear'
+p = 2
+sigma =.1
+kernel = { 
+        'linear': lambda x, y: np.dot(x,y), 
+        'poly': lambda x, y: (np.dot(x,y) + 1) ** p, 
+        'rbf' : lambda x, y: math.exp(-(np.linalg.norm(x-y))/2*(sigma^2))
+    }.get(kernel_type)
+
+P = np.ndarray((N, N))
+for i in range(N):
+    for j in range(N):
+        P[i][j] = targets[i] * targets[j] * kernel(inputs[i], inputs[j])
+
+#TODO choose C
+C = 10
+B = [(0, C) for b in range(N)]
+start = np.zeros(N)
+
+def zerofun(a):
+    return np.dot(a, targets)
+XC = {'type': 'eq', 'fun': zerofun}
+
+def objective(a):
+    return .5 * np.dot(np.dot(a, P), a) - np.sum(a)
+
+def get_b(a, sv):
+    #sv[0] = inputs[i]
+    #sv[1] = targets[i]
+    #sv[2] = i
+    b = 0 
+    for v in sv:
+        b += a[v[2]] * v[1] * kernel(v[0], sv[0][0]) 
+
+    return b - sv[0][1]
+
+def indicator(a, point, b):
     indy = 0
-    for i in range(svm.N):
-        indy += a[i] * svm.targets[i] * svm.kernel(np.array([x,y]), svm.inputs[i])
-    return indy
+    for i in range(N):
+        indy += a[i] * targets[i] * kernel(point, inputs[i]) 
+    return indy - b
 
-def plot_decision_boundary(svm, a):
-    xgrid = np.linspace(-5, 5) 
-    ygrid = np.linspace(-4, 4)
-    grid = np.array([[indicator(x, y, svm, a) for x in xgrid] for y in ygrid])
-    plt.contour(xgrid, ygrid, grid , (-1.0, 0.0, 1.0),
-    colors=('red', 'black', 'blue'), linewidths=(1, 3, 1))
+def main():
+    ret = minimize(objective, start, bounds=B, constraints=XC)
+    alpha = ret['x']
+    alpha = [round(x,5) for x in alpha]
+  
+    support_vectors = [(inputs[i], targets[i], i) for i in range(N) if alpha[i] != 0]
+    other_points = [(inputs[i], targets[i], i) for i in range(N) if alpha[i] == 0]
+    
+    plot(alpha, support_vectors, other_points)
+    plt.show()
 
+def plot(a, support_vectors, other_points, save_plt = False, filename = ""):
+    
+    plt.plot([p[0][0] for p in support_vectors if p[1] == 1], [p[0][1] for p in support_vectors if p[1] == 1], 'b+')
+    plt.plot([p[0][0] for p in support_vectors if p[1] == -1], [p[0][1] for p in support_vectors if p[1] == -1], 'r+')
 
-def plot_data(data, save_plt = False, filename = ""):
-    plt.plot([p[0] for p in data.classA], [p[1] for p in data.classA], 'b.')
-    plt.plot([p[0] for p in data.classB], [p[1] for p in data.classB], 'r.')
+    plt.plot([p[0][0] for p in other_points if p[1] == 1], [p[0][1] for p in other_points if p[1] == 1], 'b.')
+    plt.plot([p[0][0] for p in other_points if p[1] == -1], [p[0][1] for p in other_points if p[1] == -1], 'r.')
+    
+
     if save_plt:
         plt.savefig(f"{filename}.pdf")
     plt.axis("equal")
-    plt.show()
 
-class TestData:
-    def __init__(self, N):
-        np.random.seed(100)
-        classA = np.concatenate( 
-            (np.random.randn(int(N/4), 2) * 0.2 + [1.5, 0.5],
-            np.random.randn(int(N/4), 2) * 0.2 + [-1.5, 0.5]))
-        classB = np.random.randn(int(N/2), 2) * 0.2 + [0.0 , -.5]
-        inputs = np.concatenate((classA , classB))
-        targets = np.concatenate((np.ones(classA.shape[0]), 
-                                    -np.ones(classB.shape[0])))
-        permute = list(range(N)) 
-        random.shuffle(permute) 
-        self.inputs = inputs[permute, :]
-        self.targets = targets[permute]
-        self.classA = classA
-        self.classB = classB
+    xgrid = np.linspace(-2, 5) 
+    ygrid = np.linspace(-2, 5)
+    grid = np.array([[indicator(a, np.array([x, y]), get_b(a, support_vectors)) for x in xgrid] for y in ygrid])
+    plt.contour(xgrid, ygrid, grid , (-1, 0.0, 1.0),
+    colors=('red', 'black', 'blue'), linewidths=(1, 3, 1))
+
 
 
 if __name__ == "__main__":
