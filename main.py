@@ -23,13 +23,13 @@ inputs = inputs[permute, :]
 targets = targets [ permute ]
 
 #TODO choose kernel type
-kernel_type = 'linear'
+kernel_type = 'rbf'
 p = 2
 sigma =.1
 kernel = { 
         'linear': lambda x, y: np.dot(x,y), 
         'poly': lambda x, y: (np.dot(x,y) + 1) ** p, 
-        'rbf' : lambda x, y: math.exp(-(np.linalg.norm(x-y))/2*(sigma^2))
+        'rbf' : lambda x, y: math.exp(-(np.linalg.norm(x-y))/(2*(sigma**2)))
     }.get(kernel_type)
 
 P = np.ndarray((N, N))
